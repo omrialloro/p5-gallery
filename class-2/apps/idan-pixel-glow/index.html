@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="Idan Attar">
+<title>פיקסל עם X</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<style>
+  :root{--bg:#0a0b0a;--text:#e2e7dc;--ac:#b8f25c}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;overflow:hidden}
+  #bar{position:fixed;top:0;right:0;left:0;display:flex;flex-wrap:wrap;gap:16px;align-items:center;padding:10px 16px;background:#121411ee;font-size:14px;z-index:2}
+  #bar input[type=range]{width:130px;accent-color:var(--ac);direction:ltr;vertical-align:middle}
+  #bar input[type=checkbox]{accent-color:var(--ac)}
+  #bar button,#bar select{font:inherit;color:var(--text);background:#1a1d18;border:1px solid #2d3329;border-radius:6px;padding:4px 10px;cursor:pointer}
+  #bar button.rec{background:#3a1414;border-color:#e5484d;color:#ff8a8a}
+  label{cursor:pointer}
+  .file{color:var(--ac);font-weight:700}
+  .file input{display:none}
+  canvas{display:block}
+  .credit{margin-inline-start:auto;color:#8a9283;font-size:13px;letter-spacing:.5px}
+  /* במסך מלא הסרגל נעלם, ומופיע שוב כשמעבירים את העכבר למעלה */
+  :fullscreen #bar{opacity:0;transition:opacity .3s}
+  :fullscreen #bar:hover{opacity:1}
+</style>
+</head>
+<body>
+<div id="bar">
+  <label class="file">⬆ וידאו או תמונה<input type="file" id="file" accept="video/*,image/*"></label>
+  <label>גודל פיקסל <input type="range" id="size" min="6" max="80" value="24"></label>
+  <label><input type="checkbox" id="frame" checked> מסגרת</label>
+  <label>סימן
+    <select id="mark">
+      <option value="dot" selected>נקודה</option>
+      <option value="x">X</option>
+      <option value="none">ללא</option>
+    </select>
+  </label>
+  <label>גודל נקודה <input type="range" id="dotSize" min="5" max="90" value="25"></label>
+  <label>GLOW לפי
+    <select id="gmode">
+      <option value="motion" selected>תנועה</option>
+      <option value="bright">בהירות</option>
+      <option value="random">אקראי</option>
+      <option value="off">כבוי</option>
+    </select>
+  </label>
+  <label>עוצמה <input type="range" id="power" min="0" max="100" value="70"></label>
+  <label><span id="aLabel">רגישות</span> <input type="range" id="amount" min="1" max="100" value="40"></label>
+  <label id="bWrap"><span id="bLabel">שובל</span> <input type="range" id="speed" min="1" max="50" value="25"></label>
+  <button id="fs">⛶ מסך מלא</button>
+  <button id="shot">📷 תמונה (רווח)</button>
+  <button id="recBtn">⏺ הקלטה (R)</button>
+  <span class="credit" dir="ltr">Created by Idan Attar</span>
+</div>
+<script>
+// האפקט: מקטינים את התמונה לרשת קטנה, מותחים אותה בחזרה,
+// ומוסיפים לכל פיקסל מסגרת ו-X.
+// GLOW: לכל פיקסל יש "כמות זוהר" בין 0 ל-1, שנקבעת לפי אחד משלושה דברים:
+//   תנועה – כמה הפיקסל השתנה מהפריים הקודם (עם שובל שדועך לאט)
+//   בהירות – פיקסלים בהירים זוהרים, וככל שהם בהירים יותר הם זוהרים חזק יותר
+//   אקראי – כל כמה זמן נבחרים פיקסלים באקראי
+
+let src = null, small, gridKey = '';
+let glowW = new Float32Array(0), prevLum = new Float32Array(0), randPick = new Uint8Array(0), lastPick = 0;
+const gsmall = document.createElement('canvas'), gsctx = gsmall.getContext('2d');  // הזוהר ברזולוציה הקטנה
+const glow = document.createElement('canvas'), gctx = glow.getContext('2d');      // הזוהר בגודל מלא
+const $ = id => document.getElementById(id);
+
+const LABELS = {
+  motion: ['רגישות', 'שובל'],
+  bright: ['כמות', null],
+  random: ['אחוז', 'מהירות'],
+  off: [null, null]
+};
+function updateLabels() {
+  const [a, b] = LABELS[$('gmode').value];
+  $('aLabel').parentElement.style.display = a ? '' : 'none';
+  $('bWrap').style.display = b ? '' : 'none';
+  $('power').parentElement.style.display = a ? '' : 'none';
+  if (a) $('aLabel').textContent = a;
+  if (b) $('bLabel').textContent = b;
+}
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  pixelDensity(1);
+  small = createGraphics(10, 10);
+  small.pixelDensity(1);
+  $('file').onchange = e => load(e.target.files[0]);
+  $('gmode').onchange = () => { glowW.fill(0); updateLabels(); };
+  updateLabels();
+  $('fs').onclick = toggleFullscreen;
+  $('shot').onclick = takeStill;
+  $('recBtn').onclick = toggleRecord;
+  // קיצורי מקלדת: רווח = תמונה, R = הקלטה, F = מסך מלא
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'SELECT') return;
+    if (e.target.tagName === 'INPUT' && e.target.type !== 'range' && e.target.type !== 'checkbox') return;
+    if (e.code === 'Space') { e.preventDefault(); takeStill(); }
+    else if (e.code === 'KeyR') toggleRecord();
+    else if (e.code === 'KeyF') toggleFullscreen();
+  });
+}
+
+// ---------- מסך מלא ----------
+function toggleFullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(() => {});
+}
+
+// ---------- שמירת קובץ ----------
+function stamp() { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; }
+function saveBlob(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+// ---------- תמונת סטילס ----------
+function takeStill() {
+  drawingContext.canvas.toBlob(b => saveBlob(b, `pixel-x-${stamp()}.png`), 'image/png');
+  $('shot').textContent = '✓ נשמר';
+  setTimeout(() => $('shot').textContent = '📷 תמונה (רווח)', 900);
+}
+
+// ---------- הקלטת וידאו של הקנבס ----------
+let recorder = null, chunks = [], recStart = 0, recTimer = null;
+function toggleRecord() {
+  if (recorder) { recorder.stop(); return; }
+  const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+  const type = types.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
+  if (!type) { alert('הדפדפן הזה לא תומך בהקלטה'); return; }
+  const stream = drawingContext.canvas.captureStream(30);
+  recorder = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 12e6 });
+  chunks = [];
+  recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
+  recorder.onstop = () => {
+    saveBlob(new Blob(chunks, { type }), `pixel-x-${stamp()}.${type.includes('mp4') ? 'mp4' : 'webm'}`);
+    recorder = null; clearInterval(recTimer);
+    $('recBtn').classList.remove('rec'); $('recBtn').textContent = '⏺ הקלטה (R)';
+  };
+  recorder.start(250);
+  recStart = millis();
+  $('recBtn').classList.add('rec');
+  const tick = () => { const sec = floor((millis() - recStart) / 1000); $('recBtn').textContent = `⏹ עצירה ${floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; };
+  tick(); recTimer = setInterval(tick, 500);
+}
+
+function load(f) {
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  if (f.type.startsWith('video')) {
+    const v = createVideo(url, () => { v.volume(0); v.loop(); });
+    v.hide(); src = v;
+  } else {
+    loadImage(url, img => src = img);
+  }
+}
+
+// מקור הדגמה כשאין קובץ: עיגולים צבעוניים שזזים
+function demo(g) {
+  g.background(30, 40, 70);
+  g.noStroke();
+  for (let i = 0; i < 5; i++) {
+    const t = millis() / 1000 + i * 1.3;
+    g.fill(120 + 130 * sin(i), 180, 255 - 40 * i);
+    g.circle(g.width * (0.5 + 0.35 * sin(t * 0.7)), g.height * (0.5 + 0.3 * cos(t * 0.9 + i)), g.height * 0.4);
+  }
+}
+
+// ---------- כמה כל פיקסל זוהר ----------
+function updateGlow(mode, n) {
+  const px = small.pixels, amount = $('amount').value / 100, speed = +$('speed').value;
+  if (mode === 'random' && millis() - lastPick > speed * 100) {
+    randPick.fill(0);
+    for (let j = 0; j < n * amount; j++) randPick[floor(random(n))] = 1;
+    lastPick = millis();
+  }
+  const decay = 0.6 + 0.385 * (speed / 50);          // שובל: כמה מהזוהר נשאר לפריים הבא
+  const gain = 2 + amount * 40;                      // רגישות לתנועה
+  const thr = 1 - amount;                            // מעל איזו בהירות מתחילים לזהור
+  for (let k = 0; k < n; k++) {
+    const i = k * 4, lum = (0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]) / 255;
+    if (mode === 'motion') {
+      const v = min(1, abs(lum - prevLum[k]) * gain);
+      glowW[k] = max(v, glowW[k] * decay);
+    } else if (mode === 'bright') {
+      const target = lum > thr ? pow((lum - thr) / (1 - thr + 1e-6), 1.3) : 0;
+      glowW[k] += (target - glowW[k]) * 0.3;
+    } else if (mode === 'random') {
+      glowW[k] = randPick[k];
+    }
+    prevLum[k] = lum;
+  }
+}
+
+function draw() {
+  const s = +$('size').value, frame = $('frame').checked, mode = $('gmode').value;
+  const mark = $('mark').value, xmark = mark === 'x', dot = mark === 'dot';
+  $('dotSize').parentElement.style.display = dot ? '' : 'none';
+  const cols = ceil(width / s), rows = ceil(height / s), n = cols * rows;
+  const ctx = drawingContext;
+
+  if (gridKey !== cols + 'x' + rows) {
+    gridKey = cols + 'x' + rows;
+    glowW = new Float32Array(n); prevLum = new Float32Array(n); randPick = new Uint8Array(n); lastPick = 0;
+  }
+
+  // 1. הקטנה: כל פיקסל ברשת הקטנה = ממוצע של אזור בתמונה
+  if (small.width !== cols || small.height !== rows) small.resizeCanvas(cols, rows);
+  if (src) small.image(src, 0, 0, cols, rows); else demo(small);
+
+  // 2. מתיחה: מציירים את הרשת הקטנה בגודל מלא, בלי החלקה
+  background(0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(small.elt, 0, 0, cols * s, rows * s);
+
+  // 3. מסגרת וסימן (X או נקודה): הכל בציור אחד. מצב "הכפלה" מכהה לפי צבע הפיקסל שמתחתיו
+  if (dot) {
+    const r = s * $('dotSize').value / 200, d = new Path2D();
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const cx = x * s + s / 2, cy = y * s + s / 2;
+      d.moveTo(cx + r, cy); d.arc(cx, cy, r, 0, Math.PI * 2);
+    }
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.fillStyle = 'rgb(102,102,102)'; ctx.fill(d);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  if (frame || xmark) {
+    const lw = max(1, s * 0.08), h = lw / 2, p = new Path2D();
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const px = x * s, py = y * s;
+      if (frame) p.rect(px + h, py + h, s - lw, s - lw);
+      if (xmark) { p.moveTo(px + lw, py + lw); p.lineTo(px + s - lw, py + s - lw); p.moveTo(px + s - lw, py + lw); p.lineTo(px + lw, py + s - lw); }
+    }
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.strokeStyle = 'rgb(102,102,102)'; ctx.lineWidth = lw;
+    ctx.stroke(p);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // 4. GLOW: מכינים תמונה קטנה שבה כל פיקסל = הצבע שלו כפול כמות הזוהר,
+  //    מותחים אותה, מטשטשים ומוסיפים אור (מצב "lighter" מחבר בהירויות)
+  const power = $('power').value / 100;
+  if (mode !== 'off' && power > 0) {
+    small.loadPixels();
+    updateGlow(mode, n);
+    if (gsmall.width !== cols || gsmall.height !== rows) { gsmall.width = cols; gsmall.height = rows; }
+    const img = gsctx.createImageData(cols, rows), d = img.data, px = small.pixels;
+    for (let k = 0; k < n; k++) {
+      const i = k * 4, w = glowW[k] * 1.6;
+      d[i] = min(255, px[i] * w); d[i + 1] = min(255, px[i + 1] * w); d[i + 2] = min(255, px[i + 2] * w); d[i + 3] = 255;
+    }
+    gsctx.putImageData(img, 0, 0);
+    if (glow.width !== width || glow.height !== height) { glow.width = width; glow.height = height; }
+    gctx.imageSmoothingEnabled = false;
+    gctx.clearRect(0, 0, width, height);
+    gctx.drawImage(gsmall, 0, 0, cols * s, rows * s);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = power;
+    ctx.filter = `blur(${s * 0.9}px)`; ctx.drawImage(glow, 0, 0);   // ההילה שנשפכת החוצה
+    ctx.filter = `blur(${s * 0.2}px)`; ctx.drawImage(glow, 0, 0);   // הפיקסל עצמו מאיר
+    ctx.filter = 'none'; ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  ctx.imageSmoothingEnabled = true;
+}
+
+function windowResized() { resizeCanvas(windowWidth, windowHeight); }
+</script>
+</body>
+</html>
