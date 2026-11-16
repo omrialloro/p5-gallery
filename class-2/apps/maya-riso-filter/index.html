@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>חדר חושך — עורך תמונות</title>
+<style>
+  :root { --pink:#d65b91; --paper:#f5f2eb; --ink:#242721; --muted:#85837b; }
+  * { box-sizing:border-box }
+  body { margin:0; padding:24px; background:var(--paper); color:var(--ink); font:16px Arial,sans-serif }
+  main { max-width:1100px; margin:auto }
+  h1 { margin:12px 0; font-size:clamp(34px,6vw,58px) }
+  h1 em { color:var(--pink); font-style:normal }
+  p { color:var(--muted); line-height:1.6 }
+  .layout { display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:20px; margin-top:28px }
+  .stage,.controls { border:1px solid #dedbd2; border-radius:4px; background:#fbf9f4; padding:18px }
+  .stage { min-height:420px; display:grid; place-items:center; background-color:#eae7de;
+    background-image:radial-gradient(#bbb6aa 1px,transparent 1px); background-size:13px 13px }
+  canvas { display:none; max-width:100%; max-height:75vh; object-fit:contain }
+  .stage.loaded canvas { display:block }
+  .empty { text-align:center; padding:30px }
+  .stage.loaded .empty { display:none }
+  button { border:0; border-radius:3px; padding:13px 16px; background:var(--pink); color:white; cursor:pointer }
+  button:disabled,input:disabled { opacity:.45; cursor:not-allowed }
+  .group { padding:15px 0; border-bottom:1px solid #dedbd2 }
+  .title,.pair { display:flex; align-items:center; justify-content:space-between; gap:8px }
+  .title { margin-bottom:10px; font-size:14px; font-weight:bold }
+  input[type=range] { width:100%; accent-color:var(--pink) }
+  .pair input[type=number] { width:78px; padding:6px; border:1px solid #d5d1c8; border-radius:3px; direction:ltr }
+  .effect { display:flex; align-items:center; gap:8px; margin:12px 0; font-size:14px }
+  .effect input { accent-color:var(--pink) }
+  .channel { display:grid; grid-template-columns:30px 1fr 76px; gap:8px; align-items:center; margin:12px 0 }
+  .channel b { direction:ltr }
+  .channel input[type=number] { width:68px; padding:5px; direction:ltr }
+  .red { color:#bc405d } .green { color:#548250 } .blue { color:#5077a8 }
+  .buttons { display:flex; gap:8px; margin-top:18px }
+  .buttons button { flex:1 }
+  .secondary { background:#45483f }
+  #message { color:#a34132; font-size:13px }
+  @media(max-width:760px) { .layout { grid-template-columns:1fr } }
+</style>
+</head>
+<body>
+<main>
+  <p>מעבדת דימויים אנלוגית</p>
+  <h1>קצת פחות <em>דיגיטלי.</em></h1>
+  <p>בחרי תמונה וצרי לה מראה של דפוס ישן. העיבוד נעשה בדפדפן, והתמונה לא נשלחת לשרת.</p>
+
+  <div class="layout">
+    <section>
+      <div class="stage" id="stage">
+        <div class="empty">
+          <h2>מתחילים מתמונה</h2>
+          <p>בחרי קובץ מהמכשיר</p>
+          <button id="choose">בחירת תמונה</button>
+        </div>
+        <canvas id="canvas"></canvas>
+      </div>
+      <p id="dimensions">JPG, PNG, WebP ופורמטים נפוצים</p>
+      <p id="message" role="alert"></p>
+    </section>
+
+    <section class="controls">
+      <h2>לוח הבקרה</h2>
+
+      <div class="group">
+        <div class="title"><label for="sat">סטורציה</label><span class="pair"><input class="adjustable" id="sat-n" data-link="sat" type="number" min="0" max="200" value="100" disabled>%</span></div>
+        <input class="adjustable" id="sat" data-number="sat-n" type="range" min="0" max="200" value="100" disabled>
+      </div>
+
+      <div class="group">
+        <div class="title"><label for="blur">טשטוש</label><span class="pair"><input class="adjustable" id="blur-n" data-link="blur" type="number" min="0" max="12" value="0" disabled>px</span></div>
+        <input class="adjustable" id="blur" data-number="blur-n" type="range" min="0" max="12" value="0" disabled>
+      </div>
+
+      <div class="group">
+        <div class="title"><label for="grain">גרעון GRAIN</label><span class="pair"><input class="adjustable" id="grain-n" data-link="grain" type="number" min="0" max="100" value="0" disabled>%</span></div>
+        <input class="adjustable" id="grain" data-number="grain-n" type="range" min="0" max="100" value="0" disabled>
+      </div>
+
+      <div class="group">
+        <strong>שכבות ואפקטים — אפשר לבחור כמה</strong>
+        <label class="effect"><input class="adjustable" id="news" type="checkbox" disabled> נייר עיתון</label>
+        <label class="effect"><input class="adjustable" id="riso" type="checkbox" disabled> ריזוגרף RGB</label>
+        <div class="title"><label for="intensity">עוצמת האפקטים</label><span class="pair"><input class="adjustable" id="intensity-n" data-link="intensity" type="number" min="0" max="100" value="75" disabled>%</span></div>
+        <input class="adjustable" id="intensity" data-number="intensity-n" type="range" min="0" max="100" value="75" disabled>
+      </div>
+
+      <div class="group">
+        <strong>הסטת שכבות RGB</strong>
+        <p>המספרים הם אחוזים מגודל התמונה. ערך חיובי מזיז ימינה או למטה.</p>
+        <div class="channel"><b class="red">R אדום</b><label>אופקי <input class="adjustable" data-offset="rx" type="range" min="-3" max="3" step="0.1" value="-0.2" disabled></label><span><input class="adjustable" data-link="rx" type="number" min="-3" max="3" step="0.1" value="-0.2" disabled>%</span></div>
+        <div class="channel"><b class="green">G ירוק</b><label>אופקי <input class="adjustable" data-offset="gx" type="range" min="-3" max="3" step="0.1" value="0.2" disabled></label><span><input class="adjustable" data-link="gx" type="number" min="-3" max="3" step="0.1" value="0.2" disabled>%</span></div>
+        <div class="channel"><b class="blue">B כחול</b><label>אופקי <input class="adjustable" data-offset="bx" type="range" min="-3" max="3" step="0.1" value="0.1" disabled></label><span><input class="adjustable" data-link="bx" type="number" min="-3" max="3" step="0.1" value="0.1" disabled>%</span></div>
+        <div class="channel"><span></span><label>אנכי <input class="adjustable" data-offset="ry" type="range" min="-3" max="3" step="0.1" value="0.1" disabled></label><span><input class="adjustable" data-link="ry" type="number" min="-3" max="3" step="0.1" value="0.1" disabled>%</span></div>
+        <div class="channel"><span></span><label>אנכי <input class="adjustable" data-offset="gy" type="range" min="-3" max="3" step="0.1" value="-0.1" disabled></label><span><input class="adjustable" data-link="gy" type="number" min="-3" max="3" step="0.1" value="-0.1" disabled>%</span></div>
+        <div class="channel"><span></span><label>אנכי <input class="adjustable" data-offset="by" type="range" min="-3" max="3" step="0.1" value="0.2" disabled></label><span><input class="adjustable" data-link="by" type="number" min="-3" max="3" step="0.1" value="0.2" disabled>%</span></div>
+      </div>
+
+      <div class="buttons">
+        <button id="download" disabled>שמירת תמונה</button>
+        <button class="secondary" id="reset" disabled>איפוס</button>
+      </div>
+    </section>
+  </div>
+  <input id="file" type="file" accept="image/*" hidden>
+</main>
+
+<script>
+const $ = (selector) => document.querySelector(selector);
+const canvas = $("#canvas");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
+const fileInput = $("#file");
+let image = new Image();
+let loaded = false;
+
+$("#choose").onclick = () => fileInput.click();
+
+fileInput.onchange = () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  if (!file.type.startsWith("image/") && !/\\.(avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i.test(file.name)) {
+    $("#message").textContent = "בחרי קובץ תמונה.";
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  const nextImage = new Image();
+  nextImage.onload = () => {
+    image = nextImage;
+    loaded = true;
+    $("#message").textContent = "";
+    $("#dimensions").textContent = `${image.naturalWidth} × ${image.naturalHeight} px`;
+    $("#stage").classList.add("loaded");
+    document.querySelectorAll(".adjustable").forEach((el) => el.disabled = false);
+    $("#download").disabled = $("#reset").disabled = false;
+    render();
+    URL.revokeObjectURL(url);
+  };
+  nextImage.onerror = () => {
+    URL.revokeObjectURL(url);
+    $("#message").textContent = /\\.heic$/i.test(file.name)
+      ? "הדפדפן לא תומך בתמונת HEIC. שמרי אותה כ-JPG או PNG ונסי שוב."
+      : "לא ניתן לפענח את התמונה. נסי קובץ JPG, PNG או WebP.";
+  };
+  nextImage.src = url;
+  fileInput.value = "";
+};
+
+function blurPixels(data, width, height, radius) {
+  radius = Math.round(radius);
+  if (!radius) return data;
+  let input = new Float32Array(data);
+  let output = new Float32Array(data.length);
+  for (let pass = 0; pass < 2; pass++) {
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      let sums = [0,0,0,0], count = 0;
+      for (let k = -radius; k <= radius; k++) {
+        const xx = pass === 0 ? Math.max(0,Math.min(width-1,x+k)) : x;
+        const yy = pass === 0 ? y : Math.max(0,Math.min(height-1,y+k));
+        const i = (yy*width+xx)*4;
+        for (let c=0;c<4;c++) sums[c] += input[i+c];
+        count++;
+      }
+      const i=(y*width+x)*4;
+      for(let c=0;c<4;c++) output[i+c]=sums[c]/count;
+    }
+    [input,output]=[output,input];
+  }
+  return new Uint8ClampedArray(input);
+}
+
+function sample(data,w,h,x,y,c) {
+  x=Math.max(0,Math.min(w-1,x)); y=Math.max(0,Math.min(h-1,y));
+  return data[(y*w+x)*4+c];
+}
+function noise(x,y) {
+  let n=(x*374761393+y*668265263)|0;
+  n=Math.imul(n^(n>>>13),1274126177); n^=n>>>16;
+  return ((n>>>0)/4294967295)*2-1;
+}
+
+function render() {
+  if (!loaded) return;
+  const w=image.naturalWidth, h=image.naturalHeight;
+  canvas.width=w; canvas.height=h;
+  ctx.drawImage(image,0,0,w,h);
+  const original=ctx.getImageData(0,0,w,h);
+  let data=blurPixels(original.data,w,h,+$("#blur").value);
+  const sat=+$("[data-link='sat']").value/100;
+  const strength=+$("[data-link='intensity']").value/100;
+  const offsets={r:{x:+$("[data-link='rx']").value,y:+$("[data-link='ry']").value},
+    g:{x:+$("[data-link='gx']").value,y:+$("[data-link='gy']").value},
+    b:{x:+$("[data-link='bx']").value,y:+$("[data-link='by']").value}};
+
+  for(let i=0;i<data.length;i+=4) {
+    const gray=.2126*data[i]+.7152*data[i+1]+.0722*data[i+2];
+    for(let c=0;c<3;c++) data[i+c]=gray+(data[i+c]-gray)*sat;
+  }
+
+  if($("#news").checked && strength>0) {
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++) {
+      const i=(y*w+x)*4, lum=.2126*data[i]+.7152*data[i+1]+.0722*data[i+2];
+      const sx=x*.866-y*.5, sy=x*.5+y*.866;
+      const dx=((sx%5)+5)%5-2.5, dy=((sy%5)+5)%5-2.5;
+      const radius=Math.sqrt(1-lum/255)*2.4;
+      const edge=Math.max(0,Math.min(1,(radius+.65-Math.hypot(dx,dy))/1.3));
+      const ink=255-201*edge, paper=[244,235,213];
+      for(let c=0;c<3;c++) data[i+c]=data[i+c]*(1-strength)+((paper[c]*(1-edge)+ink*edge)*strength);
+    }
+  }
+
+  if($("#riso").checked && strength>0) {
+    const src=new Uint8ClampedArray(data), paper=[250,243,220];
+    const inks=[[31,148,139],[219,69,107],[239,185,71]];
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++) {
+      const i=(y*w+x)*4, result=[...paper];
+      const shifts=[offsets.r,offsets.g,offsets.b];
+      for(let c=0;c<3;c++) {
+        const sx=x-shifts[c].x/100*w, sy=y-shifts[c].y/100*h;
+        const coverage=(1-sample(src,w,h,Math.round(sx),Math.round(sy),c)/255)*.92;
+        for(let k=0;k<3;k++) result[k]*=1-coverage*(1-inks[c][k]/255);
+      }
+      for(let c=0;c<3;c++) data[i+c]=src[i+c]*(1-strength)+result[c]*strength;
+    }
+  }
+
+  const grain=+$("[data-link='grain']").value*.4;
+  if(grain) for(let y=0;y<h;y++) for(let x=0;x<w;x++) {
+    const i=(y*w+x)*4, n=noise(x,y)*grain;
+    for(let c=0;c<3;c++) data[i+c]+=n;
+  }
+  ctx.putImageData(new ImageData(data,w,h),0,0);
+}
+
+document.querySelectorAll(".adjustable").forEach((el) => {
+  el.addEventListener("input", () => {
+    const key=el.dataset.link || el.dataset.offset;
+    if(el.type==="range" && el.dataset.number) $("#"+el.dataset.number).value=el.value;
+    if(el.type==="number" && key) {
+      const linked=el.dataset.link;
+      const range=linked && document.querySelector(`[data-number="${linked}"]`);
+      const offset=linked && document.querySelector(`[data-offset="${linked.slice(0,1)}${linked.slice(-1)}"]`);
+      if(range) range.value=el.value;
+      if(offset) offset.value=el.value;
+    }
+    render();
+  });
+  if(el.type==="number") el.addEventListener("change",()=>{
+    if(el.value==="") el.value=el.defaultValue;
+    const min=+el.min,max=+el.max,step=+el.step||1;
+    let value=Math.min(max,Math.max(min,+el.value));
+    value=+(min+Math.round((value-min)/step)*step).toFixed(1);
+    el.value=value;
+    const key=el.dataset.link;
+    const range=document.querySelector(`[data-number="${key}"]`) ||
+      document.querySelector(`[data-offset="${key.slice(0,1)}${key.slice(-1)}"]`);
+    if(range) range.value=value;
+    render();
+  });
+});
+$("#news").onchange=render;
+$("#riso").onchange=render;
+
+$("#reset").onclick=()=>{
+  document.querySelectorAll(".adjustable").forEach(el=>{
+    el.value=el.defaultValue;
+  });
+  render();
+};
+$("#download").onclick=()=>{
+  canvas.toBlob(blob=>{
+    if(!blob) return;
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob); a.download="darkroom-edit.png"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  },"image/png");
+};
+</script>
+</body>
+</html>
