@@ -1,0 +1,169 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>�� ����</title><script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script><style>
+*{box-sizing:border-box}body{--bg:#edece9;--ink:#252730;--accent:#697384;--panel:#ffffff8a;margin:0;background:var(--bg);color:var(--ink);font:16px system-ui;transition:background .8s,color .8s}body[data-theme="dark"]{--bg:#201e34;--ink:#f0eafa;--accent:#b198e6;--panel:#ffffff0d}body[data-theme="bright"]{--bg:#fff0d5;--ink:#542d1e;--accent:#ce6b30;--panel:#ffffff80}main{max-width:1260px;margin:auto;padding:32px 24px}header{display:flex;align-items:baseline;justify-content:space-between;gap:20px}h1{font-size:clamp(38px,6vw,76px);letter-spacing:-.06em;margin:0}header p{max-width:380px;font-size:14px;opacity:.7}.stage{display:grid;grid-template-columns:1fr 1fr;align-items:center;min-height:390px;gap:30px}#gauge{height:380px}#selected{font-size:clamp(28px,4vw,49px);margin:0;line-height:1.1}#mood{font-size:22px;margin:15px 0 30px;color:var(--accent)}#track{display:flex;align-items:center;gap:15px;min-height:93px}#cover{width:80px;height:80px;border-radius:10px;object-fit:cover}#title{font-weight:750;font-size:18px}#singer,#album,#status{font-size:13px;opacity:.75;margin-top:5px}.actions{display:flex;gap:10px;margin-top:16px;align-items:center}button{font:inherit;color:inherit;cursor:pointer}button:focus-visible{outline:3px solid var(--accent);outline-offset:5px}.action{background:var(--panel);border:1px solid #8885;padding:9px 15px;border-radius:30px}button:disabled{opacity:.4;cursor:default}a{font-size:13px;color:var(--accent)}#artists{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:17px 14px;border-top:1px solid #8884;padding-top:25px}.artist{padding:8px;border:1px solid transparent;border-radius:16px;background:transparent;transition:background .2s,transform .2s}.artist:hover{background:var(--panel);transform:translateY(-3px)}.artist[aria-pressed="true"]{border-color:var(--accent);background:var(--panel)}.portrait{display:grid;place-items:center;aspect-ratio:1;border-radius:50%;background:var(--panel);position:relative;overflow:hidden;margin-bottom:8px}.portrait span{font-size:28px;opacity:.5}.portrait img{position:absolute;width:100%;height:100%;object-fit:cover}.artist b{display:block;font-size:12px;line-height:1.3;min-height:31px;font-weight:550}[hidden]{display:none!important}footer{font-size:12px;opacity:.6;margin-top:25px}@media(max-width:660px){header{display:block}.stage{grid-template-columns:1fr;gap:0}#gauge{height:300px}#selected{font-size:32px}#mood{margin:10px 0 15px}.details{padding-bottom:25px}#artists{grid-template-columns:repeat(3,1fr)}}
+</style></head><body><main><header><h1>�� ����</h1><p>���� ����� �� ������� ������� ��.<br>���� ��� ��� ����� �� ������ ��� �����.</p></header><section class="stage"><div id="gauge" role="img" aria-label="�� ����"></div><div class="details"><h2 id="selected" dir="auto">���� ���</h2><div id="mood">�� ��� ����� ���</div><div id="track"><img id="cover" alt="" hidden><div><div id="title" dir="auto"></div><div id="singer" dir="auto"></div><div id="album" dir="auto"></div><div id="status" role="status">���� ����� ��� ����� �� ��� ������ ���.</div></div></div><div class="actions"><button class="action" id="another" disabled>��� ���</button><button class="action" id="retry" hidden>���</button><a id="external" hidden target="_blank" rel="noopener noreferrer">����� �?Spotify</a></div></div></section><div id="artists" aria-label="����� ���"></div><footer>������ ����� �� ������� �����, ���� ������ ���� ����� �������. ������ ����� ������� ������� ������.</footer></main><script>const plays = [["2026-11-12","09:30","Blunt Ashes","Nas","0.281","����"],["2026-11-12","09:37","Niggaz Know","J. Cole","0.325","����"],["2026-11-12","09:40","One Mic","Nas","0.4904","������"],["2026-11-12","09:53","Hold Ya Head","Makaveli","0.6585","�����"],["2026-11-12","09:57","Like Father, Like Son","The Game","0.737","�����"],["2026-11-12","10:02","Bury Me A G","Thug Life","0.586","������"],["2026-11-12","10:07","God's Gift","J. Cole","0.4525","������"],["2026-11-12","10:11","The Cross","Nas","0.714","�����"],["2026-11-12","10:15","Just Don't Give a Fuck","Eminem","0.685","�����"],["2026-11-12","10:19","Brain Damage","Eminem","0.8245","��� ����"],["2026-11-12","10:23","President Carter","Lil Wayne","0.489","������"],["2026-11-12","10:48","Get You Mad","Sway & King Tech","0.564","������"],["2026-11-12","10:57","No Favors","Big Sean","0.351","����"],["2026-11-12","11:03","Criminal","Eminem","0.573","������"],["2026-11-12","11:08","We Right Here","DMX","0.697","�����"],["2026-11-12","11:13","I Need a Doctor","Dr. Dre","0.397","����"],["2026-11-12","11:17","Y'all Ready Know","Slaughterhouse","0.6565","�����"],["2026-11-12","11:21","6 Foot 7 Foot","Lil Wayne","0.625","�����"],["2026-11-12","11:25","Still Don't Give a Fuck","Eminem","0.592","������"],["2026-11-12","11:32","Straight Outta Compton","N.W.A.","0.406333","������"],["2026-11-12","11:36","Animals (Pt. 1) [with Eminem] - Pt. I","JID","0.277","����"],["2026-11-12","11:45","Throw That","Slaughterhouse","0.3995","����"],["2026-11-12","11:50","Drug Ballad","Eminem","0.64","�����"],["2026-11-12","11:55","Let Me Fly","DMX","0.288333","����"],["2026-11-12","11:59","Heat","50 Cent","0.7","�����"],["2026-11-12","12:04","Gospel (with Eminem)","Dr. Dre","0.655","�����"],["2026-11-12","12:45","Fire Squad","J. Cole","0.5855","������"],["2026-11-12","12:49","2 Of Amerikaz Most Wanted (ft. Snoop Doggy Dogg)","2Pac","0.734","�����"],["2026-11-12","12:53","Ghetto Vet","Ice Cube","0.565","������"],["2026-11-12","12:58","Look Thru My Eyes","DMX","0.711","�����"],["2026-11-12","13:02","Paper Trail$","Joey Bada$$","0.437","������"],["2026-11-12","13:05","Last Day (feat. The Lox) - 2014 Remaster","The Notorious B.I.G.","0.355","����"],["2026-11-12","13:09","��� ������","Apocalipsa","0.234","����"],["2026-11-12","13:14","Dior","Pop Smoke","0.6585","�����"],["2026-11-12","13:17","Freddie HotSpot","Griselda","0.537","������"],["2026-11-12","13:21","Paparazzi","Xzibit","0.584","������"],["2026-11-12","13:25","Still Alright","Joyner Lucas","0.2885","����"],["2026-11-12","13:29","Harlem Streets","Immortal Technique","0.717","�����"],["2026-11-12","13:33","Mirror","Kendrick Lamar","0.2715","����"],["2026-11-12","13:37","Streiht Up Menace","Compton's Most Wanted","0.556","������"],["2026-11-12","13:42","Put Me On","Joyner Lucas","0.436","������"],["2026-11-12","13:45","Lost & Found","Cordae","0.531","������"],["2026-11-12","13:48","Mr. Carter","Lil Wayne","0.473","������"],["2026-11-12","13:53","Robbery","Juice WRLD","0.5675","������"],["2026-11-12","13:57","Eye For Eye","G-Unit","0.744","�����"],["2026-11-12","14:01","Get Your Walk On","Xzibit","0.7815","�����"],["2026-11-12","14:22","I'm Illy","T.I.","0.664","�����"],["2026-11-12","16:13","Fuck & Get High","Westside Gunn","0.871","��� ����"],["2026-11-12","16:16","Now Or Never - Bonus Track","Kendrick Lamar","0.784","�����"],["2026-11-12","16:20","Changes","G-Unit","0.4255","������"],["2026-11-12","16:25","She Cheated Again","DAX","0.358","����"],["2026-11-13","07:21","The Message","Dr. Dre","0.791","�����"],["2026-11-13","07:46","Hardknock","Joey Bada$$","0.535","������"],["2026-11-13","08:06","Fly","Hopsin","0.144","���� ����"],["2026-11-13","08:13","Still Believe In Heroes","Token","0.324","����"],["2026-11-13","08:23","I Got a Story to Tell - 2014 Remaster","The Notorious B.I.G.","0.603","�����"],["2026-11-13","08:29","Head High","Joey Bada$$","0.597","������"],["2026-11-13","08:35","Lullaby","Joyner Lucas","0.403","������"],["2026-11-13","08:50","Been Through The Storm","Busta Rhymes","0.373","����"],["2026-11-13","08:54","Keisha's Song (Her Pain) (feat. Ashtro Bot)","Kendrick Lamar","0.199","���� ����"],["2026-11-13","08:58","1970 Somethin' (feat. The Game & Faith Evans)","The Notorious B.I.G.","0.4895","������"],["2026-11-13","09:12","Blue Notes","Meek Mill","0.203","����"],["2026-11-13","09:16","Something Special","Pop Smoke","0.6405","�����"],["2026-11-13","09:25","So High (feat. Ghost Loft)","Wiz Khalifa","0.3","����"],["2026-11-13","09:32","I Don't Want to Miss a Thing - From \"Armageddon\" Soundtrack","Aerosmith","0.138","���� ����"],["2026-11-13","09:39","Fraudulent Cloth","Jedi Mind Tricks","0.329","����"],["2026-11-13","09:49","Mirror","Kendrick Lamar","0.2715","����"],["2026-11-13","10:08","Harlem Streets","Immortal Technique","0.717","�����"],["2026-11-13","10:20","Die for You","The Weeknd","0.4815","������"],["2026-11-13","10:32","Thoughts From a Balcony","Mac Miller","0.475","������"],["2026-11-13","10:50","Nobody (feat. Ms. Lauryn Hill)","Nas","0.5855","������"],["2026-11-13","11:02","Nobody Does It Better","Nate Dogg","0.136815","���� ����"],["2026-11-13","11:21","Love Yourz","J. Cole","0.4085","������"],["2026-11-13","11:27","2009","Mac Miller","0.173","���� ����"],["2026-11-13","11:36","Hustler Musik","Lil Wayne","0.7135","�����"],["2026-11-13","11:48","Better Dayz","2Pac","0.526333","������"],["2026-11-13","11:53","Paparazzi","Xzibit","0.584","������"],["2026-11-13","11:59","Immortal","J. Cole","0.2495","����"],["2026-11-13","17:35","Crossing the Boundary","Immortal Technique","0.905","��� ����"],["2026-11-13","17:40","Grinding All My Life","Nipsey Hussle","0.2395","����"],["2026-11-13","17:43","Starlight","Dave","0.372","����"],["2026-11-13","17:47","Gangsta Rap Made Me Do It","Ice Cube","0.3785","����"],["2026-11-13","18:00","Guts Over Fear","Eminem","0.5115","������"],["2026-11-13","18:05","Here We Go Again","DMX","0.208","����"],["2026-11-13","18:09","Dior","Pop Smoke","0.6585","�����"],["2026-11-13","18:13","������","Apocalipsa","0.397","����"],["2026-11-13","18:16","Look Thru My Eyes","DMX","0.711","�����"],["2026-11-13","18:20","��� ����","Apocalipsa","0.735","�����"],["2026-11-13","18:25","Rich For You","Token","0.116","���� ����"],["2026-11-13","18:29","Streiht Up Menace","Compton's Most Wanted","0.556","������"],["2026-11-13","21:31","Gin and Juice","Snoop Dogg","0.381","����"],["2026-11-13","22:00","One More Chance - 2005 Remaster","The Notorious B.I.G.","0.7135","�����"],["2026-11-13","22:04","Sticks & Stones","Joyner Lucas","0.711","�����"],["2026-11-13","22:25","Let's Go","Key Glock","0.2645","����"],["2026-11-13","22:40","Skandalouz (ft. Nate Dogg)","2Pac","0.7665","�����"],["2026-11-14","10:28","Freddie HotSpot","Griselda","0.537","������"],["2026-11-14","10:37","Like My Style","50 Cent","0.826","��� ����"],["2026-11-14","10:41","Reunited (feat. GZA, Ol' Dirty Bastard, RZA & Method Man)","Wu-Tang Clan","0.8245","��� ����"],["2026-11-14","10:47","Paparazzi","Xzibit","0.584","������"],["2026-11-14","10:53","I Get Money","50 Cent","0.5205","������"],["2026-11-14","10:59","Put Me On","Joyner Lucas","0.436","������"],["2026-11-14","11:03","The Foundation","Xzibit","0.345","����"],["2026-11-14","11:07","Texas","BigXthaPlug","0.344","����"],["2026-11-14","11:09","The Message","Nas","0.49","������"],["2026-11-14","11:13","Lost & Found","Cordae","0.531","������"],["2026-11-14","11:45","I'm Illy","T.I.","0.664","�����"],["2026-11-14","12:12","Robbery","Juice WRLD","0.5675","������"],["2026-11-14","12:16","Kush - Main","Dr. Dre","0.375","����"],["2026-11-14","12:20","Backseat Freestyle","Kendrick Lamar","0.638","�����"],["2026-11-14","15:09","Backseat Freestyle","Kendrick Lamar","0.638","�����"],["2026-11-14","15:13","Harlem Streets","Immortal Technique","0.717","�����"],["2026-11-14","15:17","Y'all Ready Know","Slaughterhouse","0.6565","�����"],["2026-11-14","15:21","D-12 World","D12","0.672","�����"],["2026-11-14","15:24","A Milli","Lil Wayne","0.773","�����"],["2026-11-14","15:28","Dollar and a Dream III","J. Cole","0.317","����"],["2026-11-14","15:32","Still Believe In Heroes","Token","0.324","����"],["2026-11-14","15:42","Ratha Be Ya Nigga (ft. Richie Rich)","2Pac","0.555","������"],["2026-11-14","16:07","Noctournal Rainbows","Hopsin","0.5785","������"],["2026-11-14","17:50","Infinite","Eminem","0.571","������"],["2026-11-14","17:54","I'm The Man (feat. Sonny Digital)","Lloyd Banks","0.261","����"],["2026-11-14","17:58","Razorblade Salvation","Jedi Mind Tricks","0.529333","������"],["2026-11-14","18:03","Nikki","Logic","0.5945","������"],["2026-11-14","18:06","Auntie Diaries","Kendrick Lamar","0.6055","�����"],["2026-11-14","18:11","Round Here","Snoop Dogg","0.484","������"],["2026-11-14","18:15","Fightland","50 Cent","0.414","������"],["2026-11-14","18:17","Inwood Hill Park","6LACK","0.539","������"],["2026-11-14","18:20","Workin Out","JID","0.577","������"],["2026-11-14","18:27","Forgotten","Snak the Ripper","0.834","��� ����"],["2026-11-14","18:30","My Way","Nas","0.7775","�����"],["2026-11-14","18:34","Call Out My Name","The Weeknd","0.174","���� ����"],["2026-11-14","18:37","Jermanie's Graduation","Benny the Butcher","0.219","����"],["2026-11-14","18:41","Blue Notes","Meek Mill","0.203","����"],["2026-11-14","19:01","Heartbreak","Yelawolf","0.393","����"]].map(([date,time,title,artist,score,mood])=>({date,time,title,artist,score:+score,mood,minute:time.split(':').reduce((h,m)=>60*Number(h)+Number(m))}));
+const artists = [{"name":"Mary J. Blige","songs":2,"plays":2,"mean":0.7875000000000001,"mood":"�����"},{"name":"Immortal Technique","songs":2,"plays":4,"mean":0.764,"mood":"�����"},{"name":"Conway the Machine","songs":3,"plays":4,"mean":0.6639999999999999,"mood":"�����"},{"name":"Pop Smoke","songs":2,"plays":3,"mean":0.6525,"mood":"�����"},{"name":"Westside Gunn","songs":2,"plays":3,"mean":0.6483333333333333,"mood":"�����"},{"name":"2Pac","songs":6,"plays":6,"mean":0.6377221666666667,"mood":"�����"},{"name":"Tony Yayo","songs":2,"plays":2,"mean":0.62575,"mood":"�����"},{"name":"Lil Wayne","songs":5,"plays":5,"mean":0.6146999999999999,"mood":"�����"},{"name":"The Game","songs":2,"plays":2,"mean":0.61325,"mood":"�����"},{"name":"Lloyd Banks","songs":2,"plays":2,"mean":0.58475,"mood":"������"},{"name":"Young Buck","songs":2,"plays":2,"mean":0.58475,"mood":"������"},{"name":"Xzibit","songs":3,"plays":5,"mean":0.5757,"mood":"������"},{"name":"Royce da 5'9\"","songs":2,"plays":3,"mean":0.5708333333333333,"mood":"������"},{"name":"Joe Budden","songs":2,"plays":3,"mean":0.5708333333333333,"mood":"������"},{"name":"Joell Ortiz","songs":2,"plays":3,"mean":0.5708333333333333,"mood":"������"},{"name":"KXNG Crooked","songs":2,"plays":3,"mean":0.5708333333333333,"mood":"������"},{"name":"Nas","songs":6,"plays":6,"mean":0.5564,"mood":"������"},{"name":"50 Cent","songs":7,"plays":7,"mean":0.5558571428571429,"mood":"������"},{"name":"Busta Rhymes","songs":2,"plays":2,"mean":0.5549999999999999,"mood":"������"},{"name":"Eminem","songs":14,"plays":14,"mean":0.5508928571428571,"mood":"������"},{"name":"The Notorious B.I.G.","songs":4,"plays":4,"mean":0.54025,"mood":"������"},{"name":"Dr. Dre","songs":5,"plays":5,"mean":0.5248666,"mood":"������"},{"name":"DMX","songs":4,"plays":5,"mean":0.5230666,"mood":"������"},{"name":"Joey Bada$$","songs":3,"plays":3,"mean":0.523,"mood":"������"},{"name":"Snoop Dogg","songs":4,"plays":4,"mean":0.4935,"mood":"������"},{"name":"Kendrick Lamar","songs":5,"plays":7,"mean":0.4867857142857143,"mood":"������"},{"name":"Joyner Lucas","songs":4,"plays":5,"mean":0.45489999999999997,"mood":"������"},{"name":"Nate Dogg","songs":2,"plays":2,"mean":0.4516575,"mood":"������"},{"name":"Ice Cube","songs":3,"plays":3,"mean":0.44994433333333334,"mood":"������"},{"name":"Benny the Butcher","songs":2,"plays":3,"mean":0.43100000000000005,"mood":"������"},{"name":"Vinnie Paz","songs":2,"plays":2,"mean":0.4291665,"mood":"������"},{"name":"JID","songs":2,"plays":2,"mean":0.427,"mood":"������"},{"name":"J. Cole","songs":6,"plays":6,"mean":0.38966666666666666,"mood":"����"},{"name":"Hopsin","songs":2,"plays":2,"mean":0.36125,"mood":"����"},{"name":"The Weeknd","songs":2,"plays":2,"mean":0.32775,"mood":"����"},{"name":"Mac Miller","songs":2,"plays":2,"mean":0.32399999999999995,"mood":"����"},{"name":"Token","songs":2,"plays":3,"mean":0.25466666666666665,"mood":"����"}]
+;
+const normalize=s=>s.toLowerCase().normalize('NFKD').replace(/[^\p{L}\p{N}]/gu,'');
+const canonical=s=>s.replace(/\s*[([](?:feat\.?|ft\.?|with )[^)\]]*[)\]]/gi,'').trim();
+let callbackId=0;
+async function search(term,country){
+ const url='https://itunes.apple.com/search?entity=song&limit=25&country='+country+'&term='+encodeURIComponent(term);
+ const data=await catalog(url,url);
+ return data.results??[];
+}
+async function catalog(url,scriptUrl){
+ try{
+  const response=await fetch(url,{signal:AbortSignal.timeout(3600)});
+  if(!response.ok)throw Error('catalog');
+  return await response.json();
+ }catch{return jsonp(scriptUrl);}
+}
+function jsonp(url){
+ return new Promise((resolve,reject)=>{
+  const name='listeningPreview'+(++callbackId), script=document.createElement('script');
+  const done=(err,data)=>{clearTimeout(timer);script.remove();delete window[name];if(err)reject(err);else resolve(data);};
+  const timer=setTimeout(()=>done(Error('timeout')),4500);
+  window[name]=data=>done(null,data);
+  script.onerror=()=>done(Error('search'));
+  script.src=url+'&callback='+name;
+  document.head.append(script);
+ });
+}
+async function preview(p){
+ const target=normalize(p.title), artist=normalize(p.artist);
+ const title=canonical(p.title), simple=normalize(title);
+ const marked=/remaster|live|remix|edit|instrumental|soundtrack|bonus track/i.test(title);
+ for(const country of ['IL','US']){
+  const matches=await search(title.split(' - ')[0]+' '+p.artist,country);
+  const ranked=matches.filter(x=>{
+   if(!x.previewUrl || normalize(x.artistName||'')!==artist)return false;
+   const found=normalize(canonical(x.trackName||''));
+   return found===target||found===simple||(!marked&&normalize(canonical(x.trackName||'').split(' - ')[0])===simple&&!/live|remix|instrumental|karaoke|tribute/i.test(x.trackName));
+  });
+  const match=ranked.find(x=>normalize(x.trackName)===target)||ranked[0];
+  if(match)return {url:match.previewUrl,art:match.artworkUrl100,album:match.collectionName};
+ }
+ return null;
+}
+async function deezer(p){
+ const term=canonical(p.title).split(' - ')[0];
+ const q=encodeURIComponent(term+' '+p.artist.replace(/[.]/g,'').replace(/^The /i,''));
+ const url='https://api.deezer.com/search?limit=15&q='+q;
+ const data=await catalog(url,url+'&output=jsonp');
+ const match=(data.data||[]).find(x=>x.preview&&normalize(x.artist?.name||'')===normalize(p.artist)&&(
+  normalize(x.title)===normalize(p.title)||normalize(canonical(x.title))===normalize(canonical(p.title))
+ ));
+ return match?{url:match.preview,art:match.album.cover_medium,album:match.album.title}:null;
+}
+const $=id=>document.getElementById(id);
+const audio=new Audio();audio.volume=.65;
+let chosen=null,activePlay=null,target=.5,level=.5,token=0;
+const cache=new Map();
+const groups={
+"Slaughterhouse":["Royce da 5'9\"","Joe Budden","Joell Ortiz","KXNG Crooked"],
+"Griselda":["Westside Gunn","Conway the Machine","Benny the Butcher"],
+"Jedi Mind Tricks":["Vinnie Paz"],"D12":["Eminem"],
+"G-Unit":["50 Cent","Lloyd Banks","Young Buck"],
+"N.W.A.":["Ice Cube","Dr. Dre"],"Thug Life":["2Pac"]
+};
+const guests={
+"Get You Mad":["Eminem"],"No Favors":["Eminem"],"I Need a Doctor":["Eminem"],
+"Animals (Pt. 1) [with Eminem] - Pt. I":["Eminem"],"Throw That":["Eminem"],"Gospel (with Eminem)":["Eminem"],
+"Like Father, Like Son":["Busta Rhymes"],"2 Of Amerikaz Most Wanted (ft. Snoop Doggy Dogg)":["Snoop Dogg"],
+"Now Or Never - Bonus Track":["Mary J. Blige"],"The Message|Dr. Dre":["Mary J. Blige"],
+"1970 Somethin' (feat. The Game & Faith Evans)":["The Game"],"Skandalouz (ft. Nate Dogg)":["Nate Dogg"],
+"Like My Style":["Tony Yayo"],"Changes":["Tony Yayo"],"Sticks & Stones":["Conway the Machine"],
+"Fuck & Get High":["Conway the Machine"],"Kush - Main":["Snoop Dogg"],"I'm The Man (feat. Sonny Digital)":["50 Cent"]
+};
+function credits(p){
+ const names=new Set([...(groups[p.artist]||[p.artist==='Makaveli'?'2Pac':p.artist]),...(guests[p.title]||[]),...(guests[p.title+'|'+p.artist]||[])]);
+ if(p.title==="I'm The Man (feat. Sonny Digital)")names.delete('Lloyd Banks');
+ return names;
+}
+for(const artist of artists)artist.plays=plays.filter(p=>credits(p).has(artist.name));
+function selectArtist(artist){
+ chosen=artist;target=artist.mean;
+ document.body.dataset.theme=target<.4?'dark':target<.6?'neutral':'bright';
+ $('selected').textContent=artist.name;$('mood').textContent=(target<.4?'?? ':target<.6?'?? ':'?? ')+artist.mood;
+ $('gauge').setAttribute('aria-label','��� ���� ������ �� '+artist.name+': '+artist.mood);
+ document.querySelectorAll('.artist').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.name===artist.name)));
+ $('another').disabled=artist.plays.length<2;
+ randomTrack();
+}
+function randomTrack(){
+ if(!chosen)return;
+ const unique=[...new Map(chosen.plays.map(p=>[p.artist+'|'+p.title,p])).values()];
+ const options=unique.filter(p=>p!==activePlay);
+ activePlay=(options.length?options:unique)[Math.floor(Math.random()*(options.length||unique.length))];
+ if(!activePlay)return;
+ const p=activePlay,current=++token;
+ audio.pause();audio.removeAttribute('src');audio.load();$('retry').hidden=true;
+ $('title').textContent=p.title;$('singer').textContent=p.title==="I'm The Man (feat. Sonny Digital)"?'50 Cent':p.artist;
+ $('cover').hidden=true;$('album').textContent='';$('status').textContent='���� ��� ������.';
+ $('external').hidden=false;$('external').href='https://open.spotify.com/search/'+encodeURIComponent(p.title+' '+$('singer').textContent);
+ loadTrack(p,current);
+}
+async function loadTrack(p,current){
+ const key=p.artist+'|'+p.title;
+ if(!cache.has(key))cache.set(key,Promise.allSettled([preview(p),deezer(p)]).then(r=>{
+  const matches=r.flatMap(x=>x.status==='fulfilled'&&x.value?[x.value]:[]);
+  if(!matches.length)cache.delete(key);return matches;
+ }));
+ const matches=await cache.get(key);if(current!==token)return;
+ const artwork=matches.find(x=>x.art);
+ if(artwork){$('cover').src=artwork.art;$('cover').alt='����� '+artwork.album;$('cover').hidden=false;$('album').textContent=artwork.album||'';}
+ if(!matches.length){$('status').textContent='��� ���� �� ���� ����. ���� ����� ��� ��� �� ����� �?Spotify.';return;}
+ for(const match of matches){
+  if(current!==token)return;
+  audio.src=match.url;
+  try{await audio.play();if(current===token)$('status').textContent='������ ����� ������';return;}
+  catch(error){if(current!==token)return;if(error.name==='NotAllowedError'){$('retry').hidden=false;$('status').textContent='������ ���� ����� �� ��� ������ ������.';return;}}
+ }
+ if(current===token)$('status').textContent='��� ���� �� ����� ������.';
+}
+$('retry').onclick=()=>{const current=token;audio.play().then(()=>{if(current===token){$('retry').hidden=true;$('status').textContent='������ ����� ������';}}).catch(()=>{$('status').textContent='������ ���� �� ���� ���� �� ����.';});};
+$('another').onclick=randomTrack;
+audio.addEventListener('ended',()=>{$('status').textContent='������ ������� �������. ���� ����� ��� ���.';});
+$('cover').onerror=()=>{$('cover').hidden=true;};
+let portraitPosition=0;
+const portraits=[];
+for(const artist of artists){
+ const button=document.createElement('button');button.className='artist';button.dataset.name=artist.name;button.setAttribute('aria-pressed','false');
+ const frame=document.createElement('div');frame.className='portrait';
+ const initials=document.createElement('span');initials.textContent=artist.name.split(' ').map(x=>x[0]).slice(0,2).join('');
+ const img=document.createElement('img');img.alt=artist.name;img.hidden=true;img.loading='lazy';img.onerror=()=>{img.hidden=true;};
+ const label=document.createElement('b');label.textContent=artist.name;label.dir='auto';
+ frame.append(initials,img);button.append(frame,label);button.onclick=()=>selectArtist(artist);$('artists').append(button);
+ portraits.push({artist,img});
+}
+async function loadPortraits(){
+ while(portraitPosition<portraits.length){
+  const {artist,img}=portraits[portraitPosition++];
+  try{
+   const q=encodeURIComponent(artist.name==='KXNG Crooked'?'Crooked I':artist.name);
+   const url='https://api.deezer.com/search/artist?limit=5&q='+q;
+   const data=await catalog(url,url+'&output=jsonp');
+   const hit=(data.data||[]).find(x=>normalize(x.name)===normalize(artist.name)||artist.name==='KXNG Crooked'&&normalize(x.name)==='crookedi');
+   if(hit?.picture_medium){img.src=hit.picture_medium;img.hidden=false;}
+  }catch{}
+  await new Promise(r=>setTimeout(r,220));
+ }
+}
+new p5(p=>{
+ p.setup=()=>{p.createCanvas($('gauge').clientWidth,$('gauge').clientHeight).parent('gauge');p.pixelDensity(Math.min(2,window.devicePixelRatio||1));p.textFont('system-ui');};
+ p.windowResized=()=>p.resizeCanvas($('gauge').clientWidth,$('gauge').clientHeight);
+ p.draw=()=>{
+  p.clear();level=p.lerp(level,target,.055);
+  const cx=p.width/2,top=35,bottom=p.height-68,accent=getComputedStyle(document.body).getPropertyValue('--accent').trim(),ink=getComputedStyle(document.body).getPropertyValue('--ink').trim();
+  const tube=42,fluid=26,bulb=39;
+  p.stroke(ink);p.strokeWeight(2);p.fill(document.body.dataset.theme==='dark'?'#ffffff10':'#ffffff70');p.rect(cx-tube/2,top,tube,bottom-top,24);p.circle(cx,bottom,bulb*2);
+  p.noStroke();p.fill(accent);const y=p.map(level,0,1,bottom,top+16);p.rect(cx-fluid/2,y,fluid,bottom-y,13);p.circle(cx,bottom,bulb*1.48);
+  p.fill('#ffffff50');p.rect(cx-14,top+15,5,bottom-top-30,3);
+  p.stroke(ink);p.strokeWeight(1);for(let i=0;i<=10;i++){const ty=p.map(i,0,10,bottom-25,top+14);p.line(cx+32,ty,cx+(i%5===0?48:40),ty);}
+  p.noStroke();p.fill(ink);p.textSize(25);p.textAlign(p.CENTER,p.CENTER);
+  p.text('??',cx-65,top+25);p.text('??',cx-65,(top+bottom)/2);p.text('??',cx-65,bottom-25);
+  if(chosen){p.textSize(17);p.text(chosen.mood,cx,bottom+55);}
+ };
+});
+loadPortraits();
+</script></body></html>
